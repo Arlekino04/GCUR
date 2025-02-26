@@ -373,6 +373,11 @@
                 </svg>
             </div>
             <p>Прыгайте по платформам и достигните 100 прыжков!</p>
+            <div style="margin-bottom: 20px;">
+                <label style="color: white; font-size: 16px; margin-right: 10px;">Звук:</label>
+                <button id="mute-btn" style="padding: 8px 16px; font-size: 14px;">Выключить</button>
+                <input type="range" id="volume-slider" min="0" max="100" value="50" style="vertical-align: middle; margin-left: 10px;">
+            </div>
             <button id="start-btn">НАЧАТЬ ИГРУ</button>
         </div>
         
@@ -405,768 +410,801 @@
             <button id="restart-btn-over">ПОПРОБОВАТЬ СНОВА</button>
         </div>
         
-        <div id="pause-screen">
+        <div id="pause-screen" style="display: none;">
             <h1>ПАУЗА</h1>
             <button id="resume-btn">ПРОДОЛЖИТЬ</button>
         </div>
     </div>
 
     <script>
-    // Элементы игры
-    const gameContainer = document.getElementById('game-container');
-    const player = document.getElementById('player');
-    const scoreDisplay = document.getElementById('score');
-    const startScreen = document.getElementById('start-screen');
-    const winScreen = document.getElementById('win-screen');
-    const gameOverScreen = document.getElementById('game-over-screen');
-    const pauseScreen = document.getElementById('pause-screen');
-    const startBtn = document.getElementById('start-btn');
-    const restartBtnWin = document.getElementById('restart-btn-win');
-    const restartBtnOver = document.getElementById('restart-btn-over');
-    const resumeBtn = document.getElementById('resume-btn');
-    const leftBtn = document.getElementById('left-btn');
-    const rightBtn = document.getElementById('right-btn');
-    const pauseBtn = document.getElementById('pause-btn');
-    const finalScoreDisplay = document.getElementById('final-score');
-    const finalScoreOverDisplay = document.getElementById('final-score-over');
-    const jumpsCountDisplay = document.getElementById('jumps-count');
-    const progressBar = document.getElementById('progress-bar');
-    const confettiContainer = document.getElementById('confetti');
-    const backgroundParticles = document.getElementById('background-particles');
-    const levelIndicator = document.getElementById('level-indicator');
-    const motivationText = document.getElementById('motivation-text');
-    const winMessage = document.getElementById('win-message');
+        // Элементы игры
+        const gameContainer = document.getElementById('game-container');
+        const player = document.getElementById('player');
+        const scoreDisplay = document.getElementById('score');
+        const startScreen = document.getElementById('start-screen');
+        const winScreen = document.getElementById('win-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const pauseScreen = document.getElementById('pause-screen');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtnWin = document.getElementById('restart-btn-win');
+        const restartBtnOver = document.getElementById('restart-btn-over');
+        const resumeBtn = document.getElementById('resume-btn');
+        const leftBtn = document.getElementById('left-btn');
+        const rightBtn = document.getElementById('right-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const finalScoreOverDisplay = document.getElementById('final-score-over');
+        const jumpsCountDisplay = document.getElementById('jumps-count');
+        const progressBar = document.getElementById('progress-bar');
+        const confettiContainer = document.getElementById('confetti');
+        const backgroundParticles = document.getElementById('background-particles');
+        const levelIndicator = document.getElementById('level-indicator');
+        const motivationText = document.getElementById('motivation-text');
+        const winMessage = document.getElementById('win-message');
+        const muteBtn = document.getElementById('mute-btn');
+        const volumeSlider = document.getElementById('volume-slider');
 
-    // Звуки
-    const jumpSound = new Audio('jump.mp3');
-    const backgroundMusic = new Audio('background.mp3');
-    backgroundMusic.loop = true;
+        // Звуки
+        const jumpSound = new Audio('Ball_game.mp3');
+        const backgroundMusic = new Audio('Relax.mp3');
+        backgroundMusic.loop = true;
+        let isMuted = false;
+        let volume = 0.5;
 
-    // Состояние игры
-    let gameWidth, gameHeight;
-    let playerX, playerY, playerWidth, playerHeight;
-    let playerSpeedX = 0;
-    let playerSpeedY = 0;
-    let gravity = 0.4;
-    let jumpForce = -12;
-    let platforms = [];
-    let score = 0;
-    let jumpCount = 0;
-    let maxPlatforms = 100;
-    let isJumping = false;
-    let isGameOver = false;
-    let gameRunning = false;
-    let isPaused = false;
-    let animationFrame = null;
-    let particles = [];
-    let currentLevel = 1;
-    let movingPlatformSpeed = 1;
-    let platformShrinkSpeed = 0.2;
-    let visitedPlatforms = new Set();
-    let platformIdCounter = 0;
-    
-    // Мотивационные фразы
-    const motivationalPhrases = [
-        "Не сдавайся!", "Пробуй снова и снова!", "Падение - это часть роста!",
-        "Упорство приводит к успеху!", "Каждая ошибка - это урок!", "Дорогу осилит идущий!",
-        "Никогда не поздно начать заново!", "Путь к успеху лежит через неудачи!",
-        "Вера в себя - ключ к победе!", "Трудности делают нас сильнее!"
-    ];
-    
-    // Предсказания (100 штук)
-    const predictions = [
-        "Сегодня тебя ждёт неожиданная удача в мелочах!",
-        "Твой день будет полон ярких эмоций!",
-        "Смело берись за новое — успех близко!",
-        "Тебя ждёт приятная встреча с кем-то важным!",
-        "Сегодня звёзды советуют довериться интуиции!",
-        "Твой труд скоро принесёт плоды!",
-        "День будет спокойным и гармоничным!",
-        "Жди сюрприза от близкого человека!",
-        "Твоя энергия заразит всех вокруг!",
-        "Сегодня хороший день для новых идей!",
-        "Тебя ждёт маленькое приключение!",
-        "Докажи себе, что можешь больше!",
-        "Сегодня ты найдёшь ответ на важный вопрос!",
-        "Твой оптимизм откроет новые двери!",
-        "Жди хороших новостей к вечеру!",
-        "Твоя улыбка изменит чей-то день!",
-        "Сегодня удача на твоей стороне!",
-        "Тебя ждёт вдохновение для творчества!",
-        "День пройдёт легко и без забот!",
-        "Твоя решительность приведёт к успеху!",
-        "Сегодня звёзды обещают приятный отдых!",
-        "Тебя ждёт признание твоих заслуг!",
-        "Докажи миру, на что ты способен!",
-        "Сегодня день для смелых решений!",
-        "Твой талант заметят окружающие!",
-        "Жди неожиданного подарка судьбы!",
-        "Твоя доброта вернётся сторицей!",
-        "Сегодня ты будешь в центре внимания!",
-        "День идеален для новых начинаний!",
-        "Тебя ждёт удача в финансовых делах!",
-        "Твоя энергия привлечёт успех!",
-        "Сегодня звёзды сулят гармонию в душе!",
-        "Тебя ждёт приятный сюрприз!",
-        "День будет полон возможностей!",
-        "Твоя уверенность вдохновит других!",
-        "Сегодня ты сделаешь важный шаг!",
-        "Жди хорошего настроения весь день!",
-        "Тебя ждёт встреча с интересным человеком!",
-        "Твой день будет ярким и насыщенным!",
-        "Сегодня удача улыбнётся тебе!",
-        "Тебя ждёт успех в любимом деле!",
-        "День подарит тебе новые силы!",
-        "Твоя настойчивость окупится!",
-        "Сегодня ты найдёшь что-то ценное!",
-        "Жди приятных эмоций к вечеру!",
-        "Тебя ждёт день полный энергии!",
-        "Сегодня звёзды обещают удачу в общении!",
-        "Твоя идея принесёт успех!",
-        "День будет лёгким и радостным!",
-        "Тебя ждёт неожиданное открытие!",
-        "Сегодня ты будешь на высоте!",
-        "Жди хороших новостей от друзей!",
-        "Твоя смелость приведёт к победе!",
-        "День идеален для экспериментов!",
-        "Тебя ждёт приятный поворот событий!",
-        "Сегодня ты вдохновишь окружающих!",
-        "Твой день будет полон света!",
-        "Жди удачного стечения обстоятельств!",
-        "Тебя ждёт успех в делах!",
-        "Сегодня звёзды сулят тебе покой!",
-        "Твоя интуиция подскажет верный путь!",
-        "День будет полон приятных мелочей!",
-        "Тебя ждёт неожиданная поддержка!",
-        "Сегодня ты достигнешь важной цели!",
-        "Твой день будет ярким и тёплым!",
-        "Жди вдохновения для новых дел!",
-        "Тебя ждёт удача в мелочах!",
-        "Сегодня ты будешь сиять!",
-        "Твой труд оценят по достоинству!",
-        "День подарит тебе радость!",
-        "Тебя ждёт приятное знакомство!",
-        "Сегодня звёзды обещают успех!",
-        "Твоя энергия удивит всех!",
-        "Жди хорошего дня для отдыха!",
-        "Тебя ждёт момент славы!",
-        "Сегодня ты сделаешь важное открытие!",
-        "Твой день будет полон смеха!",
-        "Жди неожиданной помощи!",
-        "Тебя ждёт удача в творчестве!",
-        "Сегодня звёзды сулят тебе удачу!",
-        "Твоя решимость принесёт плоды!",
-        "День будет спокойным и светлым!",
-        "Тебя ждёт приятный сюрприз от судьбы!",
-        "Сегодня ты будешь в гармонии!",
-        "Твой день будет полон энергии!",
-        "Жди хороших новостей к обеду!",
-        "Тебя ждёт успех в общении!",
-        "Сегодня ты найдёшь новый путь!",
-        "Твоя смелость вдохновит других!",
-        "День подарит тебе уверенность!",
-        "Тебя ждёт приятное событие!",
-        "Сегодня звёзды обещают тебе силу!",
-        "Твой день будет полон тепла!",
-        "Жди удачи в неожиданном месте!",
-        "Тебя ждёт день полный идей!",
-        "Сегодня ты будешь на пике!",
-        "Твоя настойчивость удивит всех!",
-        "День будет лёгким и счастливым!"
-    ];
-    
-    // Создание фейерверка
-    function createFirework(x, y, color) {
-        const particleCount = 50;
-        const angleStep = (Math.PI * 2) / particleCount;
-        
-        for (let i = 0; i < particleCount; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'firework';
-            particle.style.backgroundColor = color;
-            particle.style.boxShadow = `0 0 6px ${color}, 0 0 12px ${color}`;
-            gameContainer.appendChild(particle);
-            
-            const angle = angleStep * i;
-            const speed = 3 + Math.random() * 3;
-            
-            let posX = x;
-            let posY = y;
-            let alpha = 1;
-            let speedX = Math.cos(angle) * speed;
-            let speedY = Math.sin(angle) * speed;
-            
-            function animateParticle() {
-                if (!gameRunning || isPaused) return;
-                if (alpha <= 0) {
-                    particle.remove();
-                    return;
-                }
-                
-                speedY += 0.05;
-                posX += speedX;
-                posY += speedY;
-                alpha -= 0.01;
-                
-                particle.style.left = posX + 'px';
-                particle.style.top = posY + 'px';
-                particle.style.opacity = alpha;
-                
-                requestAnimationFrame(animateParticle);
+        // Инициализация звука
+        backgroundMusic.volume = volume;
+        jumpSound.volume = volume * 1.4;
+        muteBtn.textContent = isMuted ? 'Включить' : 'Выключить';
+
+        // Обработчики управления звуком
+        muteBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            muteBtn.textContent = isMuted ? 'Включить' : 'Выключить';
+            backgroundMusic.muted = isMuted;
+            jumpSound.muted = isMuted;
+        });
+
+        volumeSlider.addEventListener('input', () => {
+            volume = volumeSlider.value / 100;
+            backgroundMusic.volume = volume;
+            jumpSound.volume = volume * 1.4;
+            if (isMuted && volume > 0) {
+                isMuted = false;
+                muteBtn.textContent = 'Выключить';
+                backgroundMusic.muted = false;
+                jumpSound.muted = false;
             }
-            
-            animateParticle();
-        }
-    }
-    
-    // Отображение сообщения "Ты молодец!"
-    function showCongratulation() {
-        const congrats = document.createElement('div');
-        congrats.className = 'congratulation';
-        congrats.innerText = 'ТЫ МОЛОДЕЦ!';
-        congrats.style.left = (Math.random() * (gameWidth - 200) + 100) + 'px';
-        congrats.style.top = (Math.random() * (gameHeight - 200) + 100) + 'px';
-        gameContainer.appendChild(congrats);
+        });
+
+        // Состояние игры
+        let gameWidth, gameHeight;
+        let playerX, playerY, playerWidth, playerHeight;
+        let playerSpeedX = 0;
+        let playerSpeedY = 0;
+        let gravity = 0.4;
+        let jumpForce = -12;
+        let platforms = [];
+        let score = 0;
+        let jumpCount = 0;
+        let maxPlatforms = 100;
+        let isJumping = false;
+        let isGameOver = false;
+        let gameRunning = false;
+        let isPaused = false;
+        let animationFrame = null;
+        let particles = [];
+        let currentLevel = 1;
+        let movingPlatformSpeed = 1;
+        let platformShrinkSpeed = 0.2;
+        let visitedPlatforms = new Set();
+        let platformIdCounter = 0;
         
-        setTimeout(() => {
-            congrats.remove();
-        }, 2000);
-    }
-    
-    // Создание фоновых частиц
-    function createBackgroundParticles() {
-        backgroundParticles.innerHTML = '';
-        particles = [];
+        // Мотивационные фразы
+        const motivationalPhrases = [
+            "Не сдавайся!", "Пробуй снова и снова!", "Падение - это часть роста!",
+            "Упорство приводит к успеху!", "Каждая ошибка - это урок!", "Дорогу осилит идущий!",
+            "Никогда не поздно начать заново!", "Путь к успеху лежит через неудачи!",
+            "Вера в себя - ключ к победе!", "Трудности делают нас сильнее!"
+        ];
         
-        for (let i = 0; i < 10; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            
-            const size = Math.random() * 5 + 2;
-            const posX = Math.random() * gameWidth;
-            const posY = Math.random() * gameHeight;
-            const opacity = Math.random() * 0.5 + 0.1;
-            
-            particle.style.width = size + 'px';
-            particle.style.height = size + 'px';
-            particle.style.left = posX + 'px';
-            particle.style.top = posY + 'px';
-            particle.style.opacity = opacity;
-            
-            backgroundParticles.appendChild(particle);
-            
-            particles.push({
-                element: particle,
-                x: posX,
-                y: posY,
-                speedY: Math.random() * 0.5 + 0.1,
-                size: size
-            });
-        }
-    }
-    
-    // Анимация фоновых частиц
-    function animateParticles() {
-        if (isPaused || !gameRunning) return;
-        for (let particle of particles) {
-            particle.y += particle.speedY;
-            
-            if (particle.y > gameHeight) {
-                particle.y = -particle.size;
-                particle.x = Math.random() * gameWidth;
-            }
-            
-            particle.element.style.top = particle.y + 'px';
-        }
+        // Предсказания (100 штук)
+        const predictions = [
+            "Сегодня тебя ждёт неожиданная удача в мелочах!",
+            "Твой день будет полон ярких эмоций!",
+            "Смело берись за новое — успех близко!",
+            "Тебя ждёт приятная встреча с кем-то важным!",
+            "Сегодня звёзды советуют довериться интуиции!",
+            "Твой труд скоро принесёт плоды!",
+            "День будет спокойным и гармоничным!",
+            "Жди сюрприза от близкого человека!",
+            "Твоя энергия заразит всех вокруг!",
+            "Сегодня хороший день для новых идей!",
+            "Тебя ждёт маленькое приключение!",
+            "Докажи себе, что можешь больше!",
+            "Сегодня ты найдёшь ответ на важный вопрос!",
+            "Твой оптимизм откроет новые двери!",
+            "Жди хороших новостей к вечеру!",
+            "Твоя улыбка изменит чей-то день!",
+            "Сегодня удача на твоей стороне!",
+            "Тебя ждёт вдохновение для творчества!",
+            "День пройдёт легко и без забот!",
+            "Твоя решительность приведёт к успеху!",
+            "Сегодня звёзды обещают приятный отдых!",
+            "Тебя ждёт признание твоих заслуг!",
+            "Докажи миру, на что ты способен!",
+            "Сегодня день для смелых решений!",
+            "Твой талант заметят окружающие!",
+            "Жди неожиданного подарка судьбы!",
+            "Твоя доброта вернётся сторицей!",
+            "Сегодня ты будешь в центре внимания!",
+            "День идеален для новых начинаний!",
+            "Тебя ждёт удача в финансовых делах!",
+            "Твоя энергия привлечёт успех!",
+            "Сегодня звёзды сулят гармонию в душе!",
+            "Тебя ждёт приятный сюрприз!",
+            "День будет полон возможностей!",
+            "Твоя уверенность вдохновит других!",
+            "Сегодня ты сделаешь важный шаг!",
+            "Жди хорошего настроения весь день!",
+            "Тебя ждёт встреча с интересным человеком!",
+            "Твой день будет ярким и насыщенным!",
+            "Сегодня удача улыбнётся тебе!",
+            "Тебя ждёт успех в любимом деле!",
+            "День подарит тебе новые силы!",
+            "Твоя настойчивость окупится!",
+            "Сегодня ты найдёшь что-то ценное!",
+            "Жди приятных эмоций к вечеру!",
+            "Тебя ждёт день полный энергии!",
+            "Сегодня звёзды обещают удачу в общении!",
+            "Твоя идея принесёт успех!",
+            "День будет лёгким и радостным!",
+            "Тебя ждёт неожиданное открытие!",
+            "Сегодня ты будешь на высоте!",
+            "Жди хороших новостей от друзей!",
+            "Твоя смелость приведёт к победе!",
+            "День идеален для экспериментов!",
+            "Тебя ждёт приятный поворот событий!",
+            "Сегодня ты вдохновишь окружающих!",
+            "Твой день будет полон света!",
+            "Жди удачного стечения обстоятельств!",
+            "Тебя ждёт успех в делах!",
+            "Сегодня звёзды сулят тебе покой!",
+            "Твоя интуиция подскажет верный путь!",
+            "День будет полон приятных мелочей!",
+            "Тебя ждёт неожиданная поддержка!",
+            "Сегодня ты достигнешь важной цели!",
+            "Твой день будет ярким и тёплым!",
+            "Жди вдохновения для новых дел!",
+            "Тебя ждёт удача в мелочах!",
+            "Сегодня ты будешь сиять!",
+            "Твой труд оценят по достоинству!",
+            "День подарит тебе радость!",
+            "Тебя ждёт приятное знакомство!",
+            "Сегодня звёзды обещают успех!",
+            "Твоя энергия удивит всех!",
+            "Жди хорошего дня для отдыха!",
+            "Тебя ждёт момент славы!",
+            "Сегодня ты сделаешь важное открытие!",
+            "Твой день будет полон смеха!",
+            "Жди неожиданной помощи!",
+            "Тебя ждёт удача в творчестве!",
+            "Сегодня звёзды сулят тебе удачу!",
+            "Твоя решимость принесёт плоды!",
+            "День будет спокойным и светлым!",
+            "Тебя ждёт приятный сюрприз от судьбы!",
+            "Сегодня ты будешь в гармонии!",
+            "Твой день будет полон энергии!",
+            "Жди хороших новостей к обеду!",
+            "Тебя ждёт успех в общении!",
+            "Сегодня ты найдёшь новый путь!",
+            "Твоя смелость вдохновит других!",
+            "День подарит тебе уверенность!",
+            "Тебя ждёт приятное событие!",
+            "Сегодня звёзды обещают тебе силу!",
+            "Твой день будет полон тепла!",
+            "Жди удачи в неожиданном месте!",
+            "Тебя ждёт день полный идей!",
+            "Сегодня ты будешь на пике!",
+            "Твоя настойчивость удивит всех!",
+            "День будет лёгким и счастливым!"
+        ];
         
-        if (gameRunning) {
-            requestAnimationFrame(animateParticles);
-        }
-    }
-    
-    // Создание конфетти при победе
-    function createConfetti() {
-        confettiContainer.innerHTML = '';
-        
-        const colors = ['#45d5ad', '#06b6d4', '#ffffff', '#2563eb', '#FFD700', '#FF4500'];
-        
-        for (let i = 0; i < 200; i++) {
-            setTimeout(() => {
-                if (!document.body.contains(confettiContainer)) return;
+        // Создание фейерверка
+        function createFirework(x, y, color) {
+            const particleCount = 50;
+            const angleStep = (Math.PI * 2) / particleCount;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'firework';
+                particle.style.backgroundColor = color;
+                particle.style.boxShadow = `0 0 6px ${color}, 0 0 12px ${color}`;
+                gameContainer.appendChild(particle);
                 
-                const confetti = document.createElement('div');
-                confetti.className = 'confetti-piece';
+                const angle = angleStep * i;
+                const speed = 3 + Math.random() * 3;
                 
-                const size = Math.random() * 10 + 5;
-                const posX = Math.random() * gameWidth;
-                const color = colors[Math.floor(Math.random() * colors.length)];
+                let posX = x;
+                let posY = y;
+                let alpha = 1;
+                let speedX = Math.cos(angle) * speed;
+                let speedY = Math.sin(angle) * speed;
                 
-                confetti.style.width = size + 'px';
-                confetti.style.height = size + 'px';
-                confetti.style.left = posX + 'px';
-                confetti.style.backgroundColor = color;
-                confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-                
-                confettiContainer.appendChild(confetti);
-                
-                let posY = -20;
-                let opacity = 1;
-                let speedY = Math.random() * 2 + 1;
-                let speedX = (Math.random() - 0.5) * 2;
-                
-                function animateConfetti() {
-                    if (!document.body.contains(confetti) || isPaused) return;
-                    
-                    posY += speedY;
-                    posX += speedX;
-                    
-                    if (posY > gameHeight) {
-                        confetti.remove();
+                function animateParticle() {
+                    if (!gameRunning || isPaused) return;
+                    if (alpha <= 0) {
+                        particle.remove();
                         return;
                     }
                     
-                    if (posY > gameHeight - 100) {
-                        opacity -= 0.02;
-                        confetti.style.opacity = opacity;
-                    }
+                    speedY += 0.05;
+                    posX += speedX;
+                    posY += speedY;
+                    alpha -= 0.01;
                     
-                    confetti.style.top = posY + 'px';
-                    confetti.style.left = posX + 'px';
+                    particle.style.left = posX + 'px';
+                    particle.style.top = posY + 'px';
+                    particle.style.opacity = alpha;
                     
-                    requestAnimationFrame(animateConfetti);
+                    requestAnimationFrame(animateParticle);
                 }
                 
-                confetti.style.opacity = '1';
-                animateConfetti();
-                
-            }, Math.random() * 3000);
-        }
-        
-        const fireworksInterval = setInterval(() => {
-            if (!gameRunning || isGameOver || isPaused) {
-                clearInterval(fireworksInterval);
-                return;
-            }
-            
-            const colors = ['#FFD700', '#FF4500', '#45d5ad', '#06b6d4', '#9C27B0', '#FF1493'];
-            const x = Math.random() * gameWidth;
-            const y = Math.random() * (gameHeight / 2) + 100;
-            const color = colors[Math.floor(Math.random() * colors.length)];
-            
-            createFirework(x, y, color);
-            
-            if (Math.random() > 0.7) {
-                showCongratulation();
-            }
-            
-        }, 800);
-    }
-    
-    // Обработчики кнопок
-    startBtn.addEventListener('click', startGame);
-    restartBtnWin.addEventListener('click', startGame);
-    restartBtnOver.addEventListener('click', startGame);
-    pauseBtn.addEventListener('click', togglePause);
-    resumeBtn.addEventListener('click', togglePause);
-    
-    // Мобильное управление
-    leftBtn.addEventListener('touchstart', () => movePlayer(-6));
-    leftBtn.addEventListener('touchend', () => movePlayer(0));
-    rightBtn.addEventListener('touchstart', () => movePlayer(6));
-    rightBtn.addEventListener('touchend', () => movePlayer(0));
-    
-    // Клавиатурное управление
-    document.addEventListener('keydown', (e) => {
-        if (!gameRunning || isPaused) return;
-        
-        if (e.key === 'ArrowLeft') {
-            movePlayer(-6);
-        } else if (e.key === 'ArrowRight') {
-            movePlayer(6);
-        } else if (e.key === 'Escape') {
-            togglePause();
-        }
-    });
-    
-    document.addEventListener('keyup', (e) => {
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-            movePlayer(0);
-        }
-    });
-    
-    // Управление движением игрока
-    function movePlayer(speed) {
-        playerSpeedX = speed;
-        
-        if (speed < 0) {
-            player.style.transform = 'rotate(-5deg)';
-        } else if (speed > 0) {
-            player.style.transform = 'rotate(5deg)';
-        } else {
-            player.style.transform = 'rotate(0deg)';
-        }
-    }
-    
-    // Инициализация игры
-    function initGame() {
-        gameWidth = gameContainer.clientWidth;
-        gameHeight = gameContainer.clientHeight;
-        
-        playerWidth = 40;
-        playerHeight = 40;
-        playerX = gameWidth / 2 - playerWidth / 2;
-        playerY = gameHeight - 200;
-        
-        player.style.width = playerWidth + 'px';
-        player.style.height = playerHeight + 'px';
-        player.style.left = playerX + 'px';
-        player.style.top = playerY + 'px';
-        
-        currentLevel = 1;
-        levelIndicator.textContent = `Уровень: ${currentLevel}`;
-        
-        gravity = 0.4;
-        jumpForce = -12;
-        movingPlatformSpeed = 1;
-        platformShrinkSpeed = 0.2;
-        playerSpeedX = 0;
-        playerSpeedY = 0;
-        score = 0;
-        jumpCount = 0;
-        visitedPlatforms.clear();
-        platformIdCounter = 0;
-        
-        if (animationFrame) cancelAnimationFrame(animationFrame);
-        platforms.forEach(p => p.element.remove());
-        platforms = [];
-        document.querySelectorAll('.particle, .firework, .congratulation, .confetti-piece').forEach(el => el.remove());
-        
-        // Начальная платформа
-        createPlatform(gameWidth / 2 - 75, gameHeight - 150, 150, 'normal');
-        
-        // Создаем 10 платформ
-        let lastY = gameHeight - 150;
-        for (let i = 0; i < 9; i++) {
-            lastY -= 120;
-            createStablePlatform(lastY);
-        }
-        
-        createBackgroundParticles();
-    }
-    
-    // Создание платформы
-    function createPlatform(x, y, width, type = 'random') {
-        const platform = document.createElement('div');
-        platform.className = 'platform';
-        platform.style.width = width + 'px';
-        platform.style.left = x + 'px';
-        platform.style.top = y + 'px';
-        gameContainer.appendChild(platform);
-        
-        let platformType = type === 'random' && currentLevel >= 2 ? (Math.random() < 0.3 ? 'moving' : (currentLevel >= 3 && Math.random() < 0.3 ? 'shrinking' : 'normal')) : type;
-        let direction = 1;
-        let originalWidth = width;
-        
-        if (platformType === 'moving') {
-            platform.classList.add('moving-platform');
-        } else if (platformType === 'shrinking') {
-            platform.classList.add('shrinking-platform');
-        }
-        
-        const platformId = platformIdCounter++;
-        platforms.push({
-            element: platform,
-            x: x,
-            y: y,
-            width: width,
-            type: platformType,
-            direction: direction,
-            originalWidth: originalWidth,
-            currentWidth: width,
-            id: platformId,
-            shrinkDirection: -1 // -1 для сжатия, 1 для разжатия
-        });
-    }
-    
-    // Создание стабильной платформы
-    function createStablePlatform(baseY) {
-        const maxWidth = 150 - (currentLevel * 5);
-        const minWidth = Math.max(40, 70 - (currentLevel * 2));
-        const platformWidth = Math.random() * (maxWidth - minWidth) + minWidth;
-        
-        const lastPlatform = platforms[platforms.length - 1];
-        const maxJumpDistance = 150;
-        const minX = Math.max(0, lastPlatform.x - maxJumpDistance);
-        const maxX = Math.min(gameWidth - platformWidth, lastPlatform.x + maxJumpDistance);
-        const platformX = minX + Math.random() * (maxX - minX);
-        
-        createPlatform(platformX, baseY, platformWidth);
-    }
-    
-    // Обновление платформ
-    function updatePlatforms() {
-        if (isPaused) return;
-        platforms.forEach(platform => {
-            if (platform.type === 'moving') {
-                platform.x += platform.direction * movingPlatformSpeed;
-                if (platform.x <= 0 || platform.x + platform.width >= gameWidth) {
-                    platform.direction *= -1;
-                }
-                platform.element.style.left = platform.x + 'px';
-            }
-            
-            if (platform.type === 'shrinking') {
-                platform.currentWidth += platform.shrinkDirection * platformShrinkSpeed;
-                if (platform.currentWidth <= 20) {
-                    platform.currentWidth = 20;
-                    platform.shrinkDirection = 1; // Начинаем разжиматься
-                } else if (platform.currentWidth >= platform.originalWidth) {
-                    platform.currentWidth = platform.originalWidth;
-                    platform.shrinkDirection = -1; // Начинаем сжиматься
-                }
-                platform.width = platform.currentWidth;
-                platform.element.style.width = platform.width + 'px';
-            }
-        });
-    }
-    
-    // Обновление позиции игрока
-    function updatePlayerPosition() {
-        player.style.left = playerX + 'px';
-        player.style.top = playerY + 'px';
-    }
-    
-    // Проверка столкновения с платформой
-    function checkPlatformCollision() {
-        for (let platform of platforms) {
-            const prevPlayerY = playerY - playerSpeedY;
-            if (playerSpeedY > 0 && // Только при падении
-                prevPlayerY + playerHeight <= platform.y && 
-                playerY + playerHeight >= platform.y && 
-                playerX + playerWidth > platform.x && 
-                playerX < platform.x + platform.width &&
-                platform.width > 0) {
-                
-                console.log('Collision detected!'); // Отладка
-                
-                playerY = platform.y - playerHeight;
-                playerSpeedY = jumpForce;
-                isJumping = true;
-                
-                jumpCount++;
-                if (!visitedPlatforms.has(platform.id)) {
-                    visitedPlatforms.add(platform.id);
-                    score++;
-                    scoreDisplay.textContent = `Платформы: ${score}`;
-                    progressBar.style.width = `${(score / maxPlatforms) * 100}%`;
-                }
-                
-                jumpSound.play();
-                createJumpEffect(playerX + playerWidth / 2, platform.y);
-                
-                const levelThreshold = maxPlatforms / 4;
-                const newLevel = Math.min(4, Math.floor(score / levelThreshold) + 1);
-                
-                if (newLevel > currentLevel) {
-                    currentLevel = newLevel;
-                    levelIndicator.textContent = `Уровень: ${currentLevel}`;
-                    gravity = Math.min(0.6, gravity + 0.05);
-                    jumpForce = Math.max(-14, jumpForce - 1);
-                    movingPlatformSpeed += 0.5;
-                    platformShrinkSpeed += 0.1;
-                }
-                
-                if (score >= maxPlatforms) {
-                    gameWin();
-                    return;
-                }
-                
-                return;
+                animateParticle();
             }
         }
-    }
-    
-    // Создание эффекта при прыжке
-    function createJumpEffect(x, y) {
-        const existingParticles = document.querySelectorAll('.particle.jump-effect');
-        if (existingParticles.length > 20) {
-            existingParticles.forEach(p => p.remove());
+        
+        // Отображение сообщения "Ты молодец!"
+        function showCongratulation() {
+            const congrats = document.createElement('div');
+            congrats.className = 'congratulation';
+            congrats.innerText = 'ТЫ МОЛОДЕЦ!';
+            congrats.style.left = (Math.random() * (gameWidth - 200) + 100) + 'px';
+            congrats.style.top = (Math.random() * (gameHeight - 200) + 100) + 'px';
+            gameContainer.appendChild(congrats);
+            
+            setTimeout(() => {
+                congrats.remove();
+            }, 2000);
         }
         
-        for (let i = 0; i < 8; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle jump-effect';
+        // Создание фоновых частиц
+        function createBackgroundParticles() {
+            backgroundParticles.innerHTML = '';
+            particles = [];
             
-            const size = Math.random() * 4 + 2;
-            const speedX = (Math.random() - 0.5) * 3;
-            const speedY = Math.random() * -3 - 2;
-            
-            particle.style.width = size + 'px';
-            particle.style.height = size + 'px';
-            particle.style.left = x + 'px';
-            particle.style.top = y + 'px';
-            particle.style.backgroundColor = '#FFFFFF';
-            
-            gameContainer.appendChild(particle);
-            
-            let posX = x;
-            let posY = y;
-            let opacity = 1;
-            
-            function animateJumpParticle() {
-                if (!gameRunning || isPaused) return;
+            for (let i = 0; i < 10; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
                 
-                posX += speedX;
-                posY += speedY;
-                opacity -= 0.05;
+                const size = Math.random() * 5 + 2;
+                const posX = Math.random() * gameWidth;
+                const posY = Math.random() * gameHeight;
+                const opacity = Math.random() * 0.5 + 0.1;
                 
-                if (opacity <= 0) {
-                    particle.remove();
-                    return;
-                }
-                
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
                 particle.style.left = posX + 'px';
                 particle.style.top = posY + 'px';
                 particle.style.opacity = opacity;
                 
-                requestAnimationFrame(animateJumpParticle);
+                backgroundParticles.appendChild(particle);
+                
+                particles.push({
+                    element: particle,
+                    x: posX,
+                    y: posY,
+                    speedY: Math.random() * 0.5 + 0.1,
+                    size: size
+                });
+            }
+        }
+        
+        // Анимация фоновых частиц
+        function animateParticles() {
+            if (isPaused || !gameRunning) return;
+            for (let particle of particles) {
+                particle.y += particle.speedY;
+                
+                if (particle.y > gameHeight) {
+                    particle.y = -particle.size;
+                    particle.x = Math.random() * gameWidth;
+                }
+                
+                particle.element.style.top = particle.y + 'px';
             }
             
-            animateJumpParticle();
-        }
-    }
-    
-    // Обновление игры
-    function updateGame() {
-        if (!gameRunning || isGameOver || isPaused) return;
-        
-        playerSpeedY = Math.min(playerSpeedY + gravity, 10);
-        playerX += playerSpeedX;
-        playerY += playerSpeedY;
-        
-        if (playerX < 0) {
-            playerX = 0;
-        } else if (playerX + playerWidth > gameWidth) {
-            playerX = gameWidth - playerWidth;
+            if (gameRunning) {
+                requestAnimationFrame(animateParticles);
+            }
         }
         
-        checkPlatformCollision();
-        updatePlatforms();
-        updatePlayerPosition();
-        
-        if (playerY > gameHeight) {
-            gameOver();
-            return;
-        }
-        
-        // Прокрутка и управление платформами
-        if (playerY < gameHeight / 3) {
-            const offset = gameHeight / 3 - playerY;
-            playerY = gameHeight / 3;
-            for (let i = 0; i < platforms.length; i++) {
-                platforms[i].y += offset;
-                platforms[i].element.style.top = platforms[i].y + 'px';
+        // Создание конфетти при победе
+        function createConfetti() {
+            confettiContainer.innerHTML = '';
+            
+            const colors = ['#45d5ad', '#06b6d4', '#ffffff', '#2563eb', '#FFD700', '#FF4500'];
+            
+            for (let i = 0; i < 200; i++) {
+                setTimeout(() => {
+                    if (!document.body.contains(confettiContainer)) return;
+                    
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti-piece';
+                    
+                    const size = Math.random() * 10 + 5;
+                    const posX = Math.random() * gameWidth;
+                    const color = colors[Math.floor(Math.random() * colors.length)];
+                    
+                    confetti.style.width = size + 'px';
+                    confetti.style.height = size + 'px';
+                    confetti.style.left = posX + 'px';
+                    confetti.style.backgroundColor = color;
+                    confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                    
+                    confettiContainer.appendChild(confetti);
+                    
+                    let posY = -20;
+                    let opacity = 1;
+                    let speedY = Math.random() * 2 + 1;
+                    let speedX = (Math.random() - 0.5) * 2;
+                    
+                    function animateConfetti() {
+                        if (!document.body.contains(confetti) || isPaused) return;
+                        
+                        posY += speedY;
+                        posX += speedX;
+                        
+                        if (posY > gameHeight) {
+                            confetti.remove();
+                            return;
+                        }
+                        
+                        if (posY > gameHeight - 100) {
+                            opacity -= 0.02;
+                            confetti.style.opacity = opacity;
+                        }
+                        
+                        confetti.style.top = posY + 'px';
+                        confetti.style.left = posX + 'px';
+                        
+                        requestAnimationFrame(animateConfetti);
+                    }
+                    
+                    confetti.style.opacity = '1';
+                    animateConfetti();
+                    
+                }, Math.random() * 3000);
+            }
+            
+            const fireworksInterval = setInterval(() => {
+                if (!gameRunning || isGameOver || isPaused) {
+                    clearInterval(fireworksInterval);
+                    return;
+                }
                 
-                if (platforms[i].y > gameHeight + 50) {
-                    platforms[i].element.remove();
-                    platforms.splice(i, 1);
-                    i--;
+                const colors = ['#FFD700', '#FF4500', '#45d5ad', '#06b6d4', '#9C27B0', '#FF1493'];
+                const x = Math.random() * gameWidth;
+                const y = Math.random() * (gameHeight / 2) + 100;
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                createFirework(x, y, color);
+                
+                if (Math.random() > 0.7) {
+                    showCongratulation();
+                }
+                
+            }, 800);
+        }
+        
+        // Обработчики кнопок
+        startBtn.addEventListener('click', startGame);
+        restartBtnWin.addEventListener('click', startGame);
+        restartBtnOver.addEventListener('click', startGame);
+        pauseBtn.addEventListener('click', togglePause);
+        resumeBtn.addEventListener('click', togglePause);
+        
+        // Мобильное управление
+        leftBtn.addEventListener('touchstart', () => movePlayer(-6));
+        leftBtn.addEventListener('touchend', () => movePlayer(0));
+        rightBtn.addEventListener('touchstart', () => movePlayer(6));
+        rightBtn.addEventListener('touchend', () => movePlayer(0));
+        
+        // Клавиатурное управление
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning || isPaused) return;
+            
+            if (e.key === 'ArrowLeft') {
+                movePlayer(-6);
+            } else if (e.key === 'ArrowRight') {
+                movePlayer(6);
+            } else if (e.key === 'Escape') {
+                togglePause();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                movePlayer(0);
+            }
+        });
+        
+        // Управление движением игрока
+        function movePlayer(speed) {
+            playerSpeedX = speed;
+            
+            if (speed < 0) {
+                player.style.transform = 'rotate(-5deg)';
+            } else if (speed > 0) {
+                player.style.transform = 'rotate(5deg)';
+            } else {
+                player.style.transform = 'rotate(0deg)';
+            }
+        }
+        
+        // Инициализация игры
+        function initGame() {
+            gameWidth = gameContainer.clientWidth;
+            gameHeight = gameContainer.clientHeight;
+            
+            playerWidth = 40;
+            playerHeight = 40;
+            playerX = gameWidth / 2 - playerWidth / 2;
+            playerY = gameHeight - 200;
+            
+            player.style.width = playerWidth + 'px';
+            player.style.height = playerHeight + 'px';
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+            
+            currentLevel = 1;
+            levelIndicator.textContent = `Уровень: ${currentLevel}`;
+            
+            gravity = 0.4;
+            jumpForce = -12;
+            movingPlatformSpeed = 1;
+            platformShrinkSpeed = 0.2;
+            playerSpeedX = 0;
+            playerSpeedY = 0;
+            score = 0;
+            jumpCount = 0;
+            visitedPlatforms.clear();
+            platformIdCounter = 0;
+            
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            platforms.forEach(p => p.element.remove());
+            platforms = [];
+            document.querySelectorAll('.platform, .particle, .firework, .congratulation, .confetti-piece').forEach(el => el.remove());
+            
+            // Начальная платформа
+            createPlatform(gameWidth / 2 - 75, gameHeight - 150, 150, 'normal');
+            
+            // Создаем 10 платформ
+            let lastY = gameHeight - 150;
+            for (let i = 0; i < 9; i++) {
+                lastY -= 120;
+                createStablePlatform(lastY);
+            }
+            
+            createBackgroundParticles();
+        }
+        
+        // Создание платформы
+        function createPlatform(x, y, width, type = 'random') {
+            const platform = document.createElement('div');
+            platform.className = 'platform';
+            platform.style.width = width + 'px';
+            platform.style.left = x + 'px';
+            platform.style.top = y + 'px';
+            gameContainer.appendChild(platform);
+            
+            let platformType = type === 'random' && currentLevel >= 2 ? (Math.random() < 0.3 ? 'moving' : (currentLevel >= 3 && Math.random() < 0.3 ? 'shrinking' : 'normal')) : type;
+            let direction = 1;
+            let originalWidth = width;
+            
+            if (platformType === 'moving') {
+                platform.classList.add('moving-platform');
+            } else if (platformType === 'shrinking') {
+                platform.classList.add('shrinking-platform');
+            }
+            
+            const platformId = platformIdCounter++;
+            platforms.push({
+                element: platform,
+                x: x,
+                y: y,
+                width: width,
+                type: platformType,
+                direction: direction,
+                originalWidth: originalWidth,
+                currentWidth: width,
+                id: platformId,
+                shrinkDirection: -1
+            });
+        }
+        
+        // Создание стабильной платформы
+        function createStablePlatform(baseY) {
+            const maxWidth = 150 - (currentLevel * 5);
+            const minWidth = Math.max(40, 70 - (currentLevel * 2));
+            const platformWidth = Math.random() * (maxWidth - minWidth) + minWidth;
+            
+            const lastPlatform = platforms[platforms.length - 1];
+            const maxJumpDistance = 150;
+            const minX = Math.max(0, lastPlatform.x - maxJumpDistance);
+            const maxX = Math.min(gameWidth - platformWidth, lastPlatform.x + maxJumpDistance);
+            const platformX = minX + Math.random() * (maxX - minX);
+            
+            createPlatform(platformX, baseY, platformWidth);
+        }
+        
+        // Обновление платформ
+        function updatePlatforms() {
+            if (isPaused) return;
+            platforms.forEach(platform => {
+                if (platform.type === 'moving') {
+                    platform.x += platform.direction * movingPlatformSpeed;
+                    if (platform.x <= 0 || platform.x + platform.width >= gameWidth) {
+                        platform.direction *= -1;
+                    }
+                    platform.element.style.left = platform.x + 'px';
+                }
+                
+                if (platform.type === 'shrinking') {
+                    platform.currentWidth += platform.shrinkDirection * platformShrinkSpeed;
+                    if (platform.currentWidth <= 20) {
+                        platform.currentWidth = 20;
+                        platform.shrinkDirection = 1;
+                    } else if (platform.currentWidth >= platform.originalWidth) {
+                        platform.currentWidth = platform.originalWidth;
+                        platform.shrinkDirection = -1;
+                    }
+                    platform.width = platform.currentWidth;
+                    platform.element.style.width = platform.width + 'px';
+                }
+            });
+        }
+        
+        // Обновление позиции игрока
+        function updatePlayerPosition() {
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+        }
+        
+        // Проверка столкновения с платформой
+        function checkPlatformCollision() {
+            for (let platform of platforms) {
+                const prevPlayerY = playerY - playerSpeedY;
+                if (playerSpeedY > 0 && 
+                    prevPlayerY + playerHeight <= platform.y && 
+                    playerY + playerHeight >= platform.y && 
+                    playerX + playerWidth > platform.x && 
+                    playerX < platform.x + platform.width &&
+                    platform.width > 0) {
+                    
+                    console.log('Collision detected!');
+                    
+                    playerY = platform.y - playerHeight;
+                    playerSpeedY = jumpForce;
+                    isJumping = true;
+                    
+                    jumpCount++;
+                    if (!visitedPlatforms.has(platform.id)) {
+                        visitedPlatforms.add(platform.id);
+                        score++;
+                        scoreDisplay.textContent = `Платформы: ${score}`;
+                        progressBar.style.width = `${(score / maxPlatforms) * 100}%`;
+                    }
+                    
+                    if (!isMuted) jumpSound.play();
+                    createJumpEffect(playerX + playerWidth / 2, platform.y);
+                    
+                    const levelThreshold = maxPlatforms / 4;
+                    const newLevel = Math.min(4, Math.floor(score / levelThreshold) + 1);
+                    
+                    if (newLevel > currentLevel) {
+                        currentLevel = newLevel;
+                        levelIndicator.textContent = `Уровень: ${currentLevel}`;
+                        gravity = Math.min(0.6, gravity + 0.05);
+                        jumpForce = Math.max(-14, jumpForce - 1);
+                        movingPlatformSpeed += 0.5;
+                        platformShrinkSpeed += 0.1;
+                    }
+                    
+                    if (score >= maxPlatforms) {
+                        gameWin();
+                        return;
+                    }
+                    
+                    return;
                 }
             }
         }
         
-        // Поддерживаем минимум 10 платформ
-        while (platforms.length < 10) {
-            const highestPlatform = platforms.reduce((min, p) => p.y < min.y ? p : min, platforms[0]);
-            createStablePlatform(highestPlatform.y - 120);
+        // Создание эффекта при прыжке
+        function createJumpEffect(x, y) {
+            const existingParticles = document.querySelectorAll('.particle.jump-effect');
+            if (existingParticles.length > 20) {
+                existingParticles.forEach(p => p.remove());
+            }
+            
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle jump-effect';
+                
+                const size = Math.random() * 4 + 2;
+                const speedX = (Math.random() - 0.5) * 3;
+                const speedY = Math.random() * -3 - 2;
+                
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.backgroundColor = '#FFFFFF';
+                
+                gameContainer.appendChild(particle);
+                
+                let posX = x;
+                let posY = y;
+                let opacity = 1;
+                
+                function animateJumpParticle() {
+                    if (!gameRunning || isPaused) return;
+                    
+                    posX += speedX;
+                    posY += speedY;
+                    opacity -= 0.05;
+                    
+                    if (opacity <= 0) {
+                        particle.remove();
+                        return;
+                    }
+                    
+                    particle.style.left = posX + 'px';
+                    particle.style.top = posY + 'px';
+                    particle.style.opacity = opacity;
+                    
+                    requestAnimationFrame(animateJumpParticle);
+                }
+                
+                animateJumpParticle();
+            }
         }
         
-        animationFrame = requestAnimationFrame(updateGame);
-    }
-    
-    // Старт игры
-    function startGame() {
-        score = 0;
-        jumpCount = 0;
-        isGameOver = false;
-        isPaused = false;
-        gameRunning = true;
-        if (animationFrame) cancelAnimationFrame(animationFrame);
-        backgroundMusic.pause();
-        backgroundMusic.currentTime = 0;
-        
-        startScreen.style.display = 'none';
-        winScreen.style.display = 'none';
-        gameOverScreen.style.display = 'none';
-        pauseScreen.style.display = 'none';
-        
-        scoreDisplay.textContent = `Платформы: ${score}`;
-        progressBar.style.width = '0%';
-        
-        initGame();
-        backgroundMusic.play();
-        animationFrame = requestAnimationFrame(updateGame);
-    }
-    
-    // Пауза
-    function togglePause() {
-        if (!gameRunning || isGameOver) return;
-        
-        isPaused = !isPaused;
-        pauseScreen.style.display = isPaused ? 'flex' : 'none';
-        backgroundMusic[isPaused ? 'pause' : 'play']();
-        
-        if (!isPaused) {
+        // Обновление игры
+        function updateGame() {
+            if (!gameRunning || isGameOver || isPaused) return;
+            
+            playerSpeedY = Math.min(playerSpeedY + gravity, 10);
+            playerX += playerSpeedX;
+            playerY += playerSpeedY;
+            
+            if (playerX < 0) {
+                playerX = 0;
+            } else if (playerX + playerWidth > gameWidth) {
+                playerX = gameWidth - playerWidth;
+            }
+            
+            checkPlatformCollision();
+            updatePlatforms();
+            updatePlayerPosition();
+            
+            if (playerY > gameHeight) {
+                gameOver();
+                return;
+            }
+            
+            // Прокрутка и управление платформами
+            if (playerY < gameHeight / 3) {
+                const offset = gameHeight / 3 - playerY;
+                playerY = gameHeight / 3;
+                for (let i = 0; i < platforms.length; i++) {
+                    platforms[i].y += offset;
+                    platforms[i].element.style.top = platforms[i].y + 'px';
+                    
+                    if (platforms[i].y > gameHeight + 50) {
+                        platforms[i].element.remove();
+                        platforms.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+            
+            // Поддерживаем минимум 10 платформ
+            while (platforms.length < 10) {
+                const highestPlatform = platforms.reduce((min, p) => p.y < min.y ? p : min, platforms[0]);
+                createStablePlatform(highestPlatform.y - 120);
+            }
+            
             animationFrame = requestAnimationFrame(updateGame);
-            animateParticles();
-        }
-    }
-    
-    // Конец игры (проигрыш)
-    function gameOver() {
-        isGameOver = true;
-        gameRunning = false;
-        backgroundMusic.pause();
-        if (animationFrame) cancelAnimationFrame(animationFrame);
-        
-        motivationText.textContent = motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)];
-        jumpsCountDisplay.textContent = jumpCount;
-        finalScoreOverDisplay.textContent = score;
-        
-        gameOverScreen.style.display = 'flex';
-    }
-    
-    // Победа
-    function gameWin() {
-        isGameOver = true;
-        gameRunning = false;
-        backgroundMusic.pause();
-        if (animationFrame) cancelAnimationFrame(animationFrame);
-        
-        finalScoreDisplay.textContent = score;
-        
-        const randomPrediction = predictions[Math.floor(Math.random() * predictions.length)];
-        if (score >= 150) {
-            winMessage.textContent = `Невероятный результат! Ты превзошел все ожидания!\nПредсказание на день: ${randomPrediction}`;
-        } else if (score >= 120) {
-            winMessage.textContent = `Блестящая победа! Твой результат впечатляет!\nПредсказание на день: ${randomPrediction}`;
-        } else {
-            winMessage.textContent = `Ты молодец! Цель достигнута!\nПредсказание на день: ${randomPrediction}`;
         }
         
-        winScreen.style.display = 'flex';
-        createConfetti();
-    }
-    
-    // Адаптация к размеру экрана
-    function handleResize() {
-        if (!gameRunning) {
+        // Старт игры
+        function startGame() {
+            score = 0;
+            jumpCount = 0;
+            isGameOver = false;
+            isPaused = false;
+            gameRunning = true;
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            backgroundMusic.pause();
+            backgroundMusic.currentTime = 0;
+            
+            startScreen.style.display = 'none';
+            winScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            pauseScreen.style.display = 'none';
+            
+            scoreDisplay.style.display = 'block'; // Убеждаемся, что счёт виден
+            player.style.display = 'block'; // Убеждаемся, что игрок виден
+            levelIndicator.style.display = 'block'; // Убеждаемся, что уровень виден
+            
+            scoreDisplay.textContent = `Платформы: ${score}`;
+            progressBar.style.width = '0%';
+            
             initGame();
+            if (!isMuted) backgroundMusic.play();
+            animationFrame = requestAnimationFrame(updateGame);
         }
-    }
-    
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('load', initGame);
-</script>
+        
+        // Пауза
+        function togglePause() {
+            if (!gameRunning || isGameOver) return;
+            
+            isPaused = !isPaused;
+            pauseScreen.style.display = isPaused ? 'flex' : 'none';
+            backgroundMusic[isPaused ? 'pause' : 'play']();
+            
+            if (!isPaused) {
+                animationFrame = requestAnimationFrame(updateGame);
+                animateParticles();
+            }
+        }
+        
+        // Конец игры (проигрыш)
+        function gameOver() {
+            isGameOver = true;
+            gameRunning = false;
+            backgroundMusic.pause();
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            
+            motivationText.textContent = motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)];
+            jumpsCountDisplay.textContent = jumpCount;
+            finalScoreOverDisplay.textContent = score;
+            
+            gameOverScreen.style.display = 'flex';
+        }
+        
+        // Победа
+        function gameWin() {
+            isGameOver = true;
+            gameRunning = false;
+            backgroundMusic.pause();
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            
+            finalScoreDisplay.textContent = score;
+            
+            const randomPrediction = predictions[Math.floor(Math.random() * predictions.length)];
+            if (score >= 150) {
+                winMessage.textContent = `Невероятный результат! Ты превзошел все ожидания!\nПредсказание на день: ${randomPrediction}`;
+            } else if (score >= 120) {
+                winMessage.textContent = `Блестящая победа! Твой результат впечатляет!\nПредсказание на день: ${randomPrediction}`;
+            } else {
+                winMessage.textContent = `Ты молодец! Цель достигнута!\nПредсказание на день: ${randomPrediction}`;
+            }
+            
+            winScreen.style.display = 'flex';
+            createConfetti();
+        }
+        
+        // Адаптация к размеру экрана
+        function handleResize() {
+            if (!gameRunning) {
+                initGame();
+            }
+        }
+        
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('load', initGame);
+    </script>
 </body>
 </html>
